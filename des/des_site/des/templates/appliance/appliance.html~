@@ -1,0 +1,76 @@
+<html lang="en">
+<head>
+	<title>Appliance Tables</title>
+	{% load staticfiles %}
+	 <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap.min.css' %}" />
+	 <link rel="stylesheet" type="text/css" href="{% static 'css/custom.css' %}" />
+</head>
+
+<body>
+	<nav class="navbar navbar-default">
+	  <div class="container-fluid">
+	    <div class="navbar-header">
+	      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+		<span class="icon-bar"></span>
+		<span class="icon-bar"></span>
+		<span class="icon-bar"></span>    
+		                
+	      </button>
+	      <a href='#' class="pull-left">
+		<img src="{% static "images/bg_logo.jpg" %}" alt="bg_logo" width=40 height=40 />    
+	      </a>
+	      <a class="navbar-brand" href="/des/">Discrete Event Simulation</a>
+	    </div>
+	    <div class="collapse navbar-collapse" id="myNavbar">
+	      <ul class="nav navbar-nav">
+		<li><a href="/des/">Home</a></li>
+	        <li class="active" ><a href="/des/list_appliance/">Appliance List</a></li>
+		<li><a href="/des/list_houses/">House List</a></li>
+		<li><a href="/des/list_streets/">Street List</a></li>
+	      </ul>
+	      <ul class="nav navbar-nav navbar-right">
+		<li><a href="#"><span class="glyphicon glyphicon-user"></span> Sign Up</a></li>
+		<li><a href="#"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
+	      </ul>
+	    </div>
+	  </div>
+	</nav>
+
+	<div class="col-md-4 col-md-offset-9">
+		<a href="{% url 'new_appliance' %}" class="btn btn-primary">Add New Appliance</a>		
+	</div>
+	<div class="container">
+		{% if latest_appliance_list %}
+		    <table class="table">
+			<thead>
+				<tr>
+					<th><b>Appliance Name</b></td>
+					<th><b>Appliance Wattage</b></td>
+				</tr>
+			</thead>
+		    {% for appliance in latest_appliance_list %}
+			<tr>
+				<td><a href="{% url 'detail' appliance.id %}">{{ appliance.name_text }}</a></td>
+				<td>{{ appliance.watts }} watts</td>
+				<td><a href="{% url 'edit_appliance' appliance.id %}" class="btn btn-block"> Edit</a>
+				<td><a href="{% url 'delete_appliance' appliance.id %}" class="btn btn-block">Delete</a>
+			</tr>
+		    {% endfor %}
+		    </table>
+		{% else %}
+		    <p>No polls are available.</p>
+		{% endif %}
+	</div>
+
+	<footer>
+		<div class="container">
+		    <div class="row">
+		        <div class="col-lg-12">
+		            <p>Copyright &copy; Filippo Di Paola - British Gas 2016</p>
+		        </div>
+		    </div>
+		    <!-- /.row -->
+		</div>
+        	<!-- /.container -->
+    	</footer>
+</body>

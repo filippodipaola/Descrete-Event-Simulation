@@ -1,0 +1,230 @@
+<html>
+  <head>
+    <title>House Details</title>
+    {% load staticfiles %}
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap.min.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'css/custom.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap-material-datetimepicker.css' %}" />
+    <link rel="stylesheet" type="text/css" href="{% static 'css/bootstrap-clockpicker.min.css' %}" />
+    <script type="text/javascript" src="{% static 'javascript/jquery-2.2.3.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'javascript/bootstrap.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'javascript/moment.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'javascript/jquery-clockpicker.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'javascript/bootstrap-material-datetimepicker.js' %}"></script>
+    <script type="text/javascript" src="{% static 'javascript/bootstrap-clockpicker.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'javascript/highlight.min.js' %}"></script>
+  </head>
+  <body>
+       	<nav class="navbar navbar-default">
+	  <div class="container-fluid">
+	    <div class="navbar-header">
+	      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#myNavbar">
+		<span class="icon-bar"></span>
+		<span class="icon-bar"></span>
+		<span class="icon-bar"></span>    
+		                
+	      </button>
+	      <a href='#' class="pull-left">
+		<img src="{% static "images/bg_logo.jpg" %}" alt="bg_logo" width=40 height=40 />    
+	      </a>
+	      <a class="navbar-brand" href="/des/">Discrete Event Simulation</a>
+	    </div>
+	    <div class="collapse navbar-collapse" id="myNavbar">
+	      <ul class="nav navbar-nav">
+		<li><a href="/des/">Home</a></li>
+	        <li><a href="/des/list_appliance/">Appliance List</a></li>
+		<li class="active" ><a href="/des/list_houses/">House List</a></li>
+		<li><a href="/des/list_streets/">Street List</a></li>
+	      </ul>
+	      <ul class="nav navbar-nav navbar-right">
+		<li><a href="#"><span class="glyphicon glyphicon-user"></span> Sign Up</a></li>
+		<li><a href="#"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
+	      </ul>
+	    </div>
+	  </div>
+	</nav>
+
+	<div class ="container">
+	  <div class="row">
+	    <div class="col-md-4 col-md-offset-9">
+	      <a href="{% url 'edit_house' house.id %}" class="btn btn-primary">Edit House</a>
+	    </div>
+	  </div>
+	  <div class="row">
+	    <h1>Detailed view of {{ house.house_name }} </h1>
+	  </div>
+	  <div class="row">
+	    <h4> House Name :  <font color="LightSeaGreen">{{ house.house_name }}</font> </h4>
+	  </div>
+	  <div class="row">
+	    <h4> House type : <font color="LightSeaGreen">{{ house.house_type }}</font> </h4>
+	  </div>
+	  <div class="row">
+	    <h4> Number of Occupants :  <font color="LightSeaGreen">{{ house.number_of_occupants }}</font> </h4>
+	  </div>
+	  <div class="row">
+	    <h2> Appliances </h2>
+	  </div>
+	  <form action="{% url 'save_house_appliances' house.id %}" method='post'> 
+	  {% csrf_token %}
+	  <table class = "table">
+	      <thead>
+		<tr>
+		  <th>Appliance</th>
+		  <th>Start Time (HH:MM format)</th>
+		  <th>Running time (hours)</th>
+		  <th>Running time (minutes)</th>
+		  <th><button type="button" onclick="randomiseAll()" class="btn btn-primary btn-sm">Randomise All!</button></th>
+		</tr>
+	      </thead>
+	      <tbody>
+		<div class="form-group">
+		{% if link_list %}
+		{% for link in link_list %}
+		  <tr>
+		    <td> {{ link.appliance_id.name_text }} </td>
+
+		    <!--<td> <input type="text" id="time_{{ forloop.counter }}" value="{{ link.operation_id }}" name="start_time" min="0" max="23" required="true" data-dtp="dtp_{{ forloop.counter }}"> </td> -->
+		    <td> 
+		      <div class="input-group clockpicker_{{ forloop.counter }}" data-placement="left" data-align="top" data-autoclose="true">
+		      <input type="text" pattern="^([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$" class="form-control" value="{{ link.operation_id }}" id="start_{{ forloop.counter }}" name="start_time">
+			<span class="input-group-addon">
+			  <span class="glyphicon glyphicon-time"></span>
+			</span>
+		      </div>
+		    {% if link.operation_id %}
+		    <td> <input type="number" name="hours" id="hours_{{ forloop.counter }}" value="{{ link.operation_id.hours }}" size="3" min="0" max="24" required="true"> </td>
+		    <td> <input type="number" name="minutes" id="minutes_{{ forloop.counter }}" value="{{ link.operation_id.minutes }}" size="3" min="0" max="59" required="true"> </td>
+		    {% else %}
+		    <td> <input type="number" name="hours" id="hours_{{ forloop.counter }}" size="3" value="0" min="0" max="24" required="true"> </td>
+		    <td> <input type="number" name="minutes" id="minutes_{{ forloop.counter }}" size="3" value="0" min="0" max="59" required="true"> </td>
+		    {% endif %}
+		    <td> <button type="button" onclick="buttonClick_{{ forloop.counter }}()" class="btn btn-primary btn-sm">Randomise!</button>
+		    <td> <input type="hidden" name="id" size="2" value="{{ link.appliance_id.id }}"> </td>
+		  </tr>
+		{% endfor %}
+		{% else %}
+		<tr>
+		    <td>This house has no appliances assigned to it, go and edit the appliance list!</td>
+		</tr>
+		{% endif %}
+		<!--<tr>
+		  <td> 
+		     
+		      <div class="input-group bootstrap-timepicker timepicker">
+			<input id="timepicker1" type="text" class="form-control input-small">
+			  <span class="input-group-addon"><i class="glyphicon glyphicon-time"></i></span>
+		      </div>
+		      <timepicker value="12:05"/> 
+		      <input type="text" id="time" class="form-control" data-dtp="dtp_yXgGm">
+		    </td>
+		</tr>-->
+	      </div>
+	    </tbody>
+	  </table>
+	  <div class="row">
+	    <div class="col-md-4 col-md-offset-9">
+	      <input type="submit" name="saveButton" value="Save" class="btn btn-primary" />
+	      <input type="submit" name="simButton" value="Simulate" class="btn btn-primary" />
+	    </div>
+	  </div>
+	</div>
+
+	<footer>
+	  <div class="container">
+	    <div class="row">
+	      <div class="col-lg-12">
+		<p>Copyright &copy; Filippo Di Paola - British Gas 2016</p>
+	      </div>
+	    </div>
+	  </div>
+    	</footer>
+    <script type="text/javascript">
+      function randomHour() {
+	var hour = Math.floor(Math.random() * 23)
+	if(hour < 10) {
+	  var hour = "0" + hour.toString();
+	}
+	return hour.toString();
+      }
+
+      function randomMinute() {
+	var mins =  Math.floor(Math.random() * 59)
+	if(mins < 10){
+	  mins = "0" + mins.toString();
+	}
+	return mins.toString();
+      }
+
+      function randomTime() {
+	var hr = randomHour();
+	var min = randomMinute();
+	console.log(hr + ":" + min)
+	return hr + ":" + min
+      }
+      {% if link_list %}
+      {% for link in link_list %}
+      function buttonClick_{{ forloop.counter }}() {
+	document.getElementById("start_{{ forloop.counter }}").value=randomTime();
+	document.getElementById("hours_{{ forloop.counter }}").value=randomHour();
+	document.getElementById("minutes_{{ forloop.counter }}").value=randomMinute();
+      }
+      {% endfor %}
+      {% endif %}
+      
+      function randomiseAll() {
+      {% for link in link_list %}
+	document.getElementById("start_{{ forloop.counter }}").value=randomTime();
+	document.getElementById("hours_{{ forloop.counter }}").value=randomHour();
+	document.getElementById("minutes_{{ forloop.counter }}").value=randomMinute();
+      {% endfor %}
+      }
+
+      $(document).ready(function()
+      {
+	{% if link_list %}
+		{% for link in link_list %}
+		  $('.clockpicker_{{ forloop.counter }}').clockpicker();
+		  $('#time_{{ forloop.counter }}').bootstrapMaterialDatePicker({ date: false, format: 'HH:mm' });
+		{% endfor %}
+	{% endif %}
+      });
+
+		
+    </script>
+{% if link_list %}
+{% for link in link_list %}
+   <div class="dtp hidden" id="dtp_{{ forloop.counter }}">
+    <div class="dtp-content" style="margin-left: -150px; top: 274px;">
+      <div class="dtp-date-view">
+	<header class="dtp-header">
+	  <div class="dtp-actual-day">&nbsp;
+	  </div>
+	  <div class="dtp-close">
+	    <a href="javascript:void(0);">
+	      <i class="material-icons">clear</i>
+	      <!--</div-->
+	    </a>
+	  </div>
+	</header>
+	<div class="dtp-date hidden">
+	  <div>
+	    <div class="left center p10">
+	      <a href="javascript:void(0);" class="dtp-select-month-before">
+		<i class="material-icons">chevron_left</i>
+	      </a>
+	    </div>
+	    <div class="dtp-actual-month p80">MAR</div>
+	      <div class="right center p10">
+		<a href="javascript:void(0);" class="dtp-select-month-after">
+		  <i class="material-icons">chevron_right</i>
+		</a>
+	      </div>
+	      <div class="clearfix">
+	   </div></div><div class="dtp-actual-num">13</div><div><div class="left center p10"><a href="javascript:void(0);" class="dtp-select-year-before"><i class="material-icons">chevron_left</i></a></div><div class="dtp-actual-year p80">2014</div><div class="right center p10"><a href="javascript:void(0);" class="dtp-select-year-after"><i class="material-icons">chevron_right</i></a></div><div class="clearfix"></div></div></div><div class="dtp-time"><div class="dtp-actual-maxtime">11:39</div></div><div class="dtp-picker"><div class="dtp-picker-calendar hidden"></div><div class="dtp-picker-datetime"><div class="dtp-actual-meridien"><div class="left p20"><a class="dtp-meridien-am hidden selected" href="javascript:void(0);">AM</a></div><div class="dtp-actual-time p60"></div><div class="right p20"><a class="dtp-meridien-pm hidden" href="javascript:void(0);">PM</a></div><div class="clearfix"></div></div><div id="dtp-svg-clock"><svg class="svg-clock" viewBox="0,0,400,400"><g transform="translate(200,200) "><circle r="192" fill="#eee" stroke="#bdbdbd" stroke-width="2"></circle><line class="minute-hand" x1="0" y1="0" x2="0" y2="-150" stroke="#bdbdbd" stroke-width="2" transform="rotate(234)"></line><line class="hour-hand" x1="0" y1="0" x2="0" y2="-90" stroke="#8BC34A" stroke-width="8" transform="rotate(330)"></line><circle r="15" fill="#757575"></circle><circle id="h-0" class="dtp-select-hour" style="cursor:pointer" r="30" cx="0" cy="-162" fill="transparent" data-hour="0"></circle><text id="th-0" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="0" y="-155" fill="#000" data-hour="0">0</text><circle id="h-1" class="dtp-select-hour" style="cursor:pointer" r="30" cx="80.99999999999999" cy="-140.29611541307906" fill="transparent" data-hour="1"></circle><text id="th-1" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="80.99999999999999" y="-133.29611541307906" fill="#000" data-hour="1">1</text><circle id="h-2" class="dtp-select-hour" style="cursor:pointer" r="30" cx="140.29611541307906" cy="-81.00000000000001" fill="transparent" data-hour="2"></circle><text id="th-2" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="140.29611541307906" y="-74.00000000000001" fill="#000" data-hour="2">2</text><circle id="h-3" class="dtp-select-hour" style="cursor:pointer" r="30" cx="162" cy="-9.919639073093561e-15" fill="transparent" data-hour="3"></circle><text id="th-3" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="162" y="6.99999999999999" fill="#000" data-hour="3">3</text><circle id="h-4" class="dtp-select-hour" style="cursor:pointer" r="30" cx="140.2961154130791" cy="80.99999999999996" fill="transparent" data-hour="4"></circle><text id="th-4" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="140.2961154130791" y="87.99999999999996" fill="#000" data-hour="4">4</text><circle id="h-5" class="dtp-select-hour" style="cursor:pointer" r="30" cx="80.99999999999999" cy="140.29611541307906" fill="transparent" data-hour="5"></circle><text id="th-5" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="80.99999999999999" y="147.29611541307906" fill="#000" data-hour="5">5</text><circle id="h-6" class="dtp-select-hour" style="cursor:pointer" r="30" cx="1.9839278146187122e-14" cy="162" fill="transparent" data-hour="6"></circle><text id="th-6" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="1.9839278146187122e-14" y="169" fill="#000" data-hour="6">6</text><circle id="h-7" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-81.00000000000001" cy="140.29611541307906" fill="transparent" data-hour="7"></circle><text id="th-7" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="-81.00000000000001" y="147.29611541307906" fill="#000" data-hour="7">7</text><circle id="h-8" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-140.29611541307904" cy="81.00000000000007" fill="transparent" data-hour="8"></circle><text id="th-8" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="-140.29611541307904" y="88.00000000000007" fill="#000" data-hour="8">8</text><circle id="h-9" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-162" cy="2.975891721928068e-14" fill="transparent" data-hour="9"></circle><text id="th-9" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="-162" y="7.00000000000003" fill="#000" data-hour="9">9</text><circle id="h-10" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-140.29611541307906" cy="-81.00000000000001" fill="transparent" data-hour="10"></circle><text id="th-10" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="-140.29611541307906" y="-74.00000000000001" fill="#000" data-hour="10">10</text><circle id="h-11" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-81.00000000000007" cy="-140.296115413079" fill="#8BC34A" data-hour="11"></circle><text id="th-11" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="20" x="-81.00000000000007" y="-133.296115413079" fill="#fff" data-hour="11">11</text><circle id="h-12" class="dtp-select-hour" style="cursor:pointer" r="30" cx="0" cy="-110" fill="transparent" data-hour="12"></circle><text id="th-12" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="0" y="-103" fill="#000" data-hour="12">12</text><circle id="h-13" class="dtp-select-hour" style="cursor:pointer" r="30" cx="54.99999999999999" cy="-95.26279441628826" fill="transparent" data-hour="13"></circle><text id="th-13" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="54.99999999999999" y="-88.26279441628826" fill="#000" data-hour="13">13</text><circle id="h-14" class="dtp-select-hour" style="cursor:pointer" r="30" cx="95.26279441628824" cy="-55.000000000000014" fill="transparent" data-hour="14"></circle><text id="th-14" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="95.26279441628824" y="-48.000000000000014" fill="#000" data-hour="14">14</text><circle id="h-15" class="dtp-select-hour" style="cursor:pointer" r="30" cx="110" cy="-6.735557395310443e-15" fill="transparent" data-hour="15"></circle><text id="th-15" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="110" y="6.999999999999993" fill="#000" data-hour="15">15</text><circle id="h-16" class="dtp-select-hour" style="cursor:pointer" r="30" cx="95.26279441628827" cy="54.99999999999998" fill="transparent" data-hour="16"></circle><text id="th-16" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="95.26279441628827" y="61.99999999999998" fill="#000" data-hour="16">16</text><circle id="h-17" class="dtp-select-hour" style="cursor:pointer" r="30" cx="54.99999999999999" cy="95.26279441628826" fill="transparent" data-hour="17"></circle><text id="th-17" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="54.99999999999999" y="102.26279441628826" fill="#000" data-hour="17">17</text><circle id="h-18" class="dtp-select-hour" style="cursor:pointer" r="30" cx="1.3471114790620885e-14" cy="110" fill="transparent" data-hour="18"></circle><text id="th-18" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="1.3471114790620885e-14" y="117" fill="#000" data-hour="18">18</text><circle id="h-19" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-55.000000000000014" cy="95.26279441628824" fill="transparent" data-hour="19"></circle><text id="th-19" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="-55.000000000000014" y="102.26279441628824" fill="#000" data-hour="19">19</text><circle id="h-20" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-95.26279441628823" cy="55.00000000000005" fill="transparent" data-hour="20"></circle><text id="th-20" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="-95.26279441628823" y="62.00000000000005" fill="#000" data-hour="20">20</text><circle id="h-21" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-110" cy="2.0206672185931328e-14" fill="transparent" data-hour="21"></circle><text id="th-21" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="-110" y="7.00000000000002" fill="#000" data-hour="21">21</text><circle id="h-22" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-95.26279441628824" cy="-55.000000000000014" fill="transparent" data-hour="22"></circle><text id="th-22" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="-95.26279441628824" y="-48.000000000000014" fill="#000" data-hour="22">22</text><circle id="h-23" class="dtp-select-hour" style="cursor:pointer" r="30" cx="-55.00000000000005" cy="-95.26279441628822" fill="transparent" data-hour="23"></circle><text id="th-23" class="dtp-select-hour-text" text-anchor="middle" style="cursor:pointer" font-weight="bold" font-size="22" x="-55.00000000000005" y="-88.26279441628822" fill="#000" data-hour="23">23</text></g></svg></div></div></div></div><div class="dtp-buttons"><button class="dtp-btn-now btn btn-flat hidden">Now</button><button class="dtp-btn-clear btn btn-flat hidden">Clear</button><button class="dtp-btn-cancel btn btn-flat">Cancel</button><button class="dtp-btn-ok btn btn-flat">OK</button><div class="clearfix"></div></div></div></div>
+   
+{% endfor %}
+{% endif %}
+  </body>
+
+</html>

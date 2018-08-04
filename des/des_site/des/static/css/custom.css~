@@ -1,0 +1,42 @@
+ 
+.wrap {
+	position:relative;
+	margin:0 auto;
+       /*replace 900px with your width*/
+	width:900px;
+}
+
+#header, #footer {
+	width:100%;
+	float:left;
+}
+#notification {
+    position:fixed;
+    top:0px;
+    width:100%;
+    z-index:105;
+    text-align:center;
+    font-weight:normal;
+    font-size:14px;
+    font-weight:bold;
+    color:white;
+    background-color:#FF7800;
+    padding:5px;
+}
+#notification span.dismiss {
+    border:2px solid #FFF;
+    padding:0 5px;
+    cursor:pointer;
+    float:right;
+    margin-right:10px;
+}
+#notification a {
+    color:white;
+    text-decoration:none;
+    font-weight:bold
+}
+.select_box_size {
+    width:500px;
+    height:300px;
+    overflow:auto
+}

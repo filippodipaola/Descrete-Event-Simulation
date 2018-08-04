@@ -1,0 +1,204 @@
+# -*- coding: utf-8 -*-
+import simpy
+from datetime import time, datetime, timedelta, date
+from .models import Appliance, House, Table_Link, OperationTimes
+import numpy
+import random
+
+#-----------------------------------------------------------------------
+from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
+from plotly.offline import plot
+import plotly.graph_objs as go
+import plotly.tools as tls
+from plotly.offline.offline import _plot_html
+#-----------------------------------------------------------------------
+
+SEED = 42
+
+#random.seed(SEED)
+
+appliance_list = []
+consumption_list = []
+cummulative_consumption_list = []
+total_power_consumption = 0.0
+RUNTIME = 0
+
+class Appliance(object):
+  # on time and duration must be in minutes, use the functions to convert datetime.time to mins
+  def __init__(self, env, name, watts, on_time, duration):
+    global total_power_consumption
+    self.env = env
+    self.action = env.process(self.run())
+    self.device_consumption = 0.0
+    self.on_time = on_time
+    self.duration = abs(duration)
+    self.watts = float(watts)
+    self.name = name
+    total_power_consumption = 0.0
+
+  def run(self):
+    while True:
+      if(self.env.now % 1440 == self.on_time or (self.env.now % 1440 == 0 and self.on_time == 0)):	#1440 is how many minutes there are in a day
+	print("%s|Powered : on|Time: %d:00|Consumed : %dWh"
+	  % (self.name, self.env.now, self.device_consumption))
+	yield self.env.process(self.turned_on())
+	print("%s|Powered : off|Time: %d:00|Consumed : %fWh"
+        % (self.name, self.env.now, self.device_consumption))
+	#yield self.env.timeout(1440)	# This skips to the next time the appliance will be used
+      #else:
+      yield self.env.timeout(1)
+
+  def turned_on(self):
+    global total_power_consumption
+    global consumption_list
+    global RUNTIME
+    # Declares how much varience of the duration can be permitted in the
+    # randomised duration timings.
+    if self.duration < 60:
+      MAX_VARIATION = self.duration
+    elif self.duration >= RUNTIME:
+      MAX_VARIATION = 0
+    else:
+      MAX_VARIATION = 60
+      
+    self.duration += random.randint(-MAX_VARIATION,MAX_VARIATION)	# Randomises the operation time by maximum an hour.
+    if self.duration > (RUNTIME - self.env.now):
+      self.duration =  (RUNTIME - self.env.now)
+    
+    self.device_consumption += float(self.watts*self.duration)/60.0	# Turns the watt-hours 
+    total_power_consumption += float(self.watts*self.duration)/60.0	# to watt-minutes
+    try:
+      for x in range(self.env.now, self.env.now + self.duration):
+	consumption_list[x] += float(self.watts)/60.0
+	
+    except IndexError:
+      pass
+     
+    yield self.env.timeout(abs(self.duration))
+
+  def get_watts(self):
+    return self.watts
+
+  def get_total_watts(self):
+    return self.device_consumption
+
+  def get_name(self):
+    return self.name
+
+def time_to_minutes(time):
+  mins = time.minute
+  hours = time.hour
+  return hours*60+mins
+
+def get_duration(on_time, off_time):
+  time1 = time_to_minutes(on_time)
+  time2 = time_to_minutes(off_time)
+  return time2 - time1
+
+def simulate(link_objects, run_time):
+  env = simpy.Environment()
+  global consumption_list
+  global RUNTIME
+  global appliance_list
+  global cummulative_consumption_list
+  appliance_list = []
+  consumption_list = []
+  RUNTIME = run_time
+  # This sets the size of the power consumption array.
+  for i in range(run_time):
+    consumption_list.append(0)
+    cummulative_consumption_list.append(0)
+
+  for item in link_objects:
+    operation_time = item.operation_id
+    appliance = item.appliance_id
+    start_time = time_to_minutes(operation_time.on_time)
+    duration = get_duration(operation_time.on_time, operation_time.off_time)
+    duration = operation_time.hours * 60 + operation_time.minutes
+    new_appliance = Appliance(env, appliance.name_text, appliance.watts, start_time, abs(duration))
+    appliance_list.append(new_appliance)
+  env.run(until = run_time)
+  return generate_graphs()
+
+def generate_street_graph(consumption_list):
+  cummulative_consumption_list = []
+  time_list = []
+  name_list = []
+  power_list = []
+  html = ""
+  count = 0
+    
+  for item in consumption_list:
+    if count == 0:
+      time_list.append(time(0,0,0))
+      cummulative_consumption_list[count] = item
+    else:
+      cummulative_consumption_list[count] = item + cummulative_consumption_list[count-1]
+      time_list.append((datetime.combine(date(1,1,1),time_list[count-1]) + timedelta(minutes=1)).time())
+      #print time_list[count]
+    count+=1
+  
+  plot_data = [go.Scatter(x=time_list, y=consumption_list, name='Watts')]
+  layout = go.Layout(title=("Simulated Total Power Consumption"),xaxis=dict(title="Time"), yaxis=dict(title="Power consumption in Watts"))
+  py_fig = dict(data=plot_data, layout=layout)
+  plot_html, plotdivid, width, height = _plot_html(py_fig,False, "", True, '100%', 525, False)
+  #html = "<div class=\"row\"><h3>Overall Power Consumption</h3>"
+  html += "<div class=\"row\">%s</div>" %plot_html
+  
+  
+  plot_data = [go.Scatter(x=time_list, y=cummulative_consumption_list, name='Watts')]
+  layout = go.Layout(title=("Cummulative Total Power Consumption"),xaxis=dict(title="Time"), yaxis=dict(title="Power consumption in Watts"))
+  py_fig = dict(data=plot_data, layout=layout)
+  plot_html, plotdivid, width, height = _plot_html(py_fig,False, "", True, '100%', 525, False)
+    
+  html += "\n<div class=\"row\">%s</div>" %plot_html
+
+  return (html)
+
+
+def generate_graphs():
+  global consumption_list
+  global total_power_consumption
+  global cummulative_consumption_list
+  time_list = []
+  name_list = []
+  power_list = []
+  html = ""
+  count = 0
+    
+  for item in consumption_list:
+    if count == 0:
+      time_list.append(time(0,0,0))
+      cummulative_consumption_list[count] = item
+    else:
+      cummulative_consumption_list[count] = item + cummulative_consumption_list[count-1]
+      time_list.append((datetime.combine(date(1,1,1),time_list[count-1]) + timedelta(minutes=1)).time())
+      #print time_list[count]
+    count+=1
+  
+  plot_data = [go.Scatter(x=time_list, y=consumption_list, name='Watts')]
+  layout = go.Layout(title=("Simulated Total Power Consumption"),xaxis=dict(title="Time"), yaxis=dict(title="Power consumption in Watts"))
+  py_fig = dict(data=plot_data, layout=layout)
+  plot_html, plotdivid, width, height = _plot_html(py_fig,False, "", True, '100%', 525, False)
+  #html = "<div class=\"row\"><h3>Overall Power Consumption</h3>"
+  html += "<div class=\"row\">%s</div>" %plot_html
+  
+  for appliance in appliance_list:
+    name_list.append(appliance.get_name())
+    power_list.append(appliance.get_total_watts())
+  
+  plot_data = [go.Bar(x=name_list, y=power_list, name='Power Consumption')]
+  layout = go.Layout(title=("Simulated Appliance Power Consumption"),xaxis=dict(title="Appliance"), yaxis=dict(title="Power consumption in Watts"))
+  py_fig = dict(data=plot_data, layout=layout)
+  plot_html, plotdivid, width, height = _plot_html(py_fig,False, "", True, '100%', 525, False)
+  #html += "<div class=\"row\"><h3>Appliance Consumption</h3>"
+  html += "\n<div class=\"row\">%s</div>" %plot_html
+  
+  plot_data = [go.Scatter(x=time_list, y=cummulative_consumption_list, name='Watts')]
+  layout = go.Layout(title=("Cummulative Total Power Consumption"),xaxis=dict(title="Time"), yaxis=dict(title="Power consumption in Watts"))
+  py_fig = dict(data=plot_data, layout=layout)
+  plot_html, plotdivid, width, height = _plot_html(py_fig,False, "", True, '100%', 525, False)
+    
+  html += "\n<div class=\"row\">%s</div>" %plot_html
+
+  return (html, total_power_consumption, consumption_list)

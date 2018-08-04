@@ -1,0 +1,35 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Apr  1 14:59:35 2016
+
+@author: VMdev
+"""
+from django.conf.urls import url
+
+from . import views
+
+urlpatterns = [ (url(r'^$', views.index, name='index')),
+                #(url(r'^(?P<appliance_id>[0-9]+)/$', views.details, name='details')),
+                (url(r'^(?P<pk>[0-9]+)/$', views.DetailView.as_view(), name='detail')),
+		(url(r'^(?P<appliance_id>[0-9]+)/change_appliance/$', views.change_appliance, name='change_appliance')),
+                (url(r'^make_appliance/$', views.make_appliance, name='make_appliance')),
+                (url(r'^list_appliance/$', views.list_appliance, name='list_appliance')),
+		(url(r'^(?P<appliance_id>[0-9]+)/edit_appliance/$', views.edit_appliance, name='edit_appliance')),
+		(url(r'^new_appliance/$', views.new_appliance, name="new_appliance")),
+		(url(r'^(?P<appliance_id>[0-9]+)/delete/$', views.delete_appliance, name="delete_appliance")),
+		(url(r'^list_houses/$', views.list_houses, name='list_houses')),
+		(url(r'^new_house/$', views.new_house, name="new_house")),
+		(url(r'^make_house/$', views.make_house, name='make_house')),
+		(url(r'^(?P<house_id>[0-9]+)/edit_house/$', views.edit_house, name='edit_house')),
+		(url(r'^(?P<house_id>[0-9]+)/delete_house/$', views.delete_house, name="delete_house")),
+		(url(r'^(?P<house_id>[0-9]+)/change_house/$', views.change_house, name='change_house')),
+		(url(r'^(?P<house_id>[0-9]+)/house_details/$', views.house_details, name="house_details")),
+		(url(r'^(?P<house_id>[0-9]+)/save_house_appliances/$', views.save_house_appliances, name="save_house_appliances")),
+		(url(r'^(?P<house_id>[0-9]+)/simulate/$', views.display_simulation, name="display_simulation")),
+		(url(r'^(?P<sim_id>[0-9]+)/display_premade_simulation/$', views.display_premade_simulation, name="display_premade_simulation")),
+		(url(r'^list_streets/$', views.list_streets, name='list_streets')),
+		(url(r'^new_street/$', views.new_street, name="new_street")),
+		(url(r'^make_street/$', views.make_street, name='make_street')),
+		(url(r'^(?P<street_id>[0-9]+)/delete_street/$', views.delete_street, name="delete_street")),
+		(url(r'^(?P<street_id>[0-9]+)/street_details/$', views.street_details, name="street_details")),
+		(url(r'^(?P<street_id>[0-9]+)/simulate_street/$', views.simulate_street, name="simulate_street"))]

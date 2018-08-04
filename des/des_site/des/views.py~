@@ -1,0 +1,432 @@
+# -*- coding: utf-8 -*-
+"""
+This module is used to control the views of the program. 
+It fits within the MVC design framework.
+
+The script is designed to render the html web pages that the user will see
+from this script. This script is also used to do various processing on the inputs 
+and produce outputs which will be displayed on the webpages.
+
+This script is directedly related to the urls script, which ditactes the urls
+which call the views in this script. When writing a new view fucnction here that
+renders a webpage, it's also neccessary to update the urls.py file to allow for the 
+function to be accessible and run to produce the desired webpage.
+
+IN ORDER TO UNDERSTAND WHAT HAPPENS HERE IT'S BEST TO FOLLOW THE DJANGO TUTORIAL
+HERE:  https://docs.djangoproject.com/en/1.9/intro/tutorial01/l
+"""
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, HttpResponseRedirect
+from .models import Appliance, House, Table_Link, OperationTimes, Street, Simulation
+from django.core.urlresolvers import reverse
+from django.views import generic
+from datetime import time, timedelta, datetime, date
+import simulation as sim
+
+# This function returns the end time based on an increase
+# of the desired amount of hours and minutes. Used when scheduling
+# the on and off times of appliances.
+def hourmins_to_time(start_time, a_hour, a_minute):
+    minutes = int(a_hour) * 60	# Works out the minutes by the hour entered by the users
+    minutes += int(a_minute)
+    minutes = minutes * -1  # inverses the minutes for the time delta below
+    end_time = (datetime.combine(date(1,1,1),start_time) - timedelta(minutes=minutes)).time()
+    return end_time
+
+# This renders the "home page" of the website
+def index(request):
+    return render(request, 'index/index.html')  
+
+# This renders a detailed view of a selected appliance#
+# @depreciated
+class DetailView(generic.DetailView):
+    model = Appliance
+    template_name = 'appliance/details.html'
+
+# @depreciated
+def results(request, appliance_id):
+    response = ("You're looking at a appliance %s." % appliance_id)
+    return HttpResponse(response)
+
+# Renders the editing appliance webpage, this function however does notify
+# actually edit the appliance, it simply
+def edit_appliance(request, appliance_id):
+    requested_appliance = get_object_or_404(Appliance, pk=appliance_id)
+    # This checks that the appliance has a default time, if it does it will
+    # display it on the webpage, if it doesn't it will display the default
+    # time which is 00:00 0Hours 0Minutes
+    if requested_appliance.default_time:
+      context = {'requested_appliance' : requested_appliance, 
+		  'start_time' : requested_appliance.default_time,
+		  'hours' : requested_appliance.default_time.hours,
+		  'minutes' :requested_appliance.default_time.minutes}
+    else:
+      context = {'requested_appliance' : requested_appliance, 
+		  'start_time' : "00:00",
+		  'hours' : "0",
+		  'minutes' :"0"}
+
+    return render(request, 'appliance/edit_appliance.html', context)
+
+# deletes an appliance when the delete button is pressed on the 
+# list of appliance screen.
+def delete_appliance(request, appliance_id):
+  requested_appliance = get_object_or_404(Appliance, pk=appliance_id)
+  requested_appliance.delete()
+  return list_appliance(request)
+  
+# This function is used to create a new appliance from data inputted by 
+# the user, this doesn't render the new appliance web page but uses
+# the information from the that screen to make a new appliance.
+def make_appliance(request):
+    new_appliance=Appliance()
+
+    if len(request.POST['start_time']) > 4:
+      a_time = request.POST['start_time']
+      start_time = time(int(a_time[:2]), int(a_time[-2:])) # start time of the appliance
+      end_time = hourmins_to_time(start_time, request.POST['hours'], request.POST['minutes'])
+    
+      appliance_time = OperationTimes()	# creates a new running time
+      appliance_time.on_time = start_time
+      appliance_time.off_time = end_time
+      appliance_time.hours = int(request.POST['hours'])
+      appliance_time.minutes = int(request.POST['minutes'])
+      appliance_time.save()  
+      
+      
+      new_appliance.default_time = appliance_time
+    new_appliance.name_text = request.POST['name_text']
+    new_appliance.watts = request.POST['watts']
+    new_appliance.save()
+      
+
+      
+    # This checks which button is pressed by the user on the form submission.
+    # Based on this, a different web page is rendered.
+    if 'submit_and_exit' in request.POST:
+      latest_appliance_list = list(Appliance.objects.order_by('name_text'))
+      context = {'latest_appliance_list' : latest_appliance_list}
+      return render(request, 'appliance/appliance.html', context)
+    else:
+      context = { 'my_javascript_code' : "<script>\n\t\tfunction notify() {\n\t\t\tnoty({ text: 'Added appliance successfully!', layout : 'bottom', type : 'success', timeout:'1500'})\n\t\t;}\n\t\tnotify();\n\t</script> "}
+      return render(request, 'appliance/new_appliance.html', context)
+
+
+# This function is used modify an appliance based on the form in the edit 
+# appliance web page. This is linked to the edit_appliance() funciton.
+def change_appliance(request, appliance_id):
+  appliance = get_object_or_404(Appliance, pk=appliance_id)
+  try:
+    new_text = request.POST['name_text']
+    new_watts = request.POST['watts']
+  except KeyError:
+    return render(request, 'appliance/edit_appliance.html', { 
+	    'appliance' : appliance,
+	    'error_message' : "You didn't enter the values correctly"})
+  else:
+    # This converts the hours and minutes from the default time input into an
+    # end time and saves it to the appliance.
+    if len(request.POST['start_time']) > 4:
+      a_time = request.POST['start_time']
+      start_time = time(int(a_time[:2]), int(a_time[-2:])) # start time of the appliance
+      end_time = hourmins_to_time(start_time, request.POST['hours'], request.POST['minutes'])
+      appliance_time = OperationTimes()	# creates a new running time
+      appliance_time.on_time = start_time
+      appliance_time.off_time = end_time
+      appliance_time.hours = int(request.POST['hours'])
+      appliance_time.minutes = int(request.POST['minutes'])
+      appliance_time.save()  
+      appliance.default_time = appliance_time
+
+    appliance.name_text = new_text
+    appliance.watts = new_watts
+    appliance.save()
+    return list_appliance(request)
+    #latest_appliance_list = list(Appliance.objects.order_by('name_text'))
+    #context = {'latest_appliance_list' : latest_appliance_list}
+    #return HttpResponseRedirect(reverse(request, 'appliance/appliance.html', context))
+    #return render(request, 'appliance/appliance.html', context)
+
+# This function is used to render a webpage which displays all the appliances in the data
+# base.
+def list_appliance(request):
+    latest_appliance_list = list(Appliance.objects.order_by('name_text'))
+    print latest_appliance_list
+    context = {'latest_appliance_list' : latest_appliance_list}
+    return render(request, 'appliance/appliance.html', context)
+
+# This renders the webpage used to create new appliance. it's linked to 
+# the make appliance function.
+def new_appliance(request):
+    context = { 'my_javascript_code' : ""}
+    return render(request, 'appliance/new_appliance.html', context)
+
+# Function renders the list of houses for webpage. 
+def list_houses(request):
+    house_list = list(House.objects.order_by('house_name'))
+    print house_list
+    context = {'house_list' : house_list}
+    return render(request, 'house/house.html', context)
+
+# Renders the webpage for adding a new house
+def new_house(request):
+    appliance_list = list(Appliance.objects.order_by('name_text'))
+    context = { 'my_javascript_code' : "", 'appliance_list' : appliance_list}
+    return render(request, 'house/new_house.html', context)
+
+# This function creates a house based on the input from the web form
+# for creating houses.
+
+def make_house(request):
+    #creates a new house object
+    new_house=House()
+    # Sets the name, type and number of occupants from the
+    # web form on the create house page. The request is in
+    # a form of a dictionary.
+    new_house.house_name = request.POST['house_name']
+    new_house.house_type = request.POST['house_type']
+    new_house.number_of_occupants = request.POST['no_of_occupants']
+    appliance_list = dict(request.POST)['house_appliances']
+    # Saves the new house to the database.
+    new_house.save()
+    # Creates the list of appliances that are associated to a house
+    # Used in the simulation process.
+    for appliance_id in appliance_list:
+      appliance = get_object_or_404(Appliance, pk=int(appliance_id))
+      new_link = Table_Link()
+      new_link.house_id = new_house
+      new_link.appliance_id = appliance
+      new_link.operation_id = appliance.default_time
+      new_link.save()
+    # Changes what web page to render based on the button pressed.
+    if 'submit_and_exit' in request.POST:
+      return list_houses(request)
+    elif 'submit_and_sim' in request.POST:
+      return house_details(request, new_house.id)
+    else:
+      context = { 'my_javascript_code' : "<script>\n\t\tfunction notify() {\n\t\t\tnoty({ text: 'Added appliance successfully!', layout : 'bottom', type : 'success', timeout:'1500'})\n\t\t;}\n\t\tnotify();\n\t</script> "}
+      return render(request, 'house/new_house.html', context)
+
+# Renders the web page for editting a house.
+def edit_house(request, house_id):
+  appliance_list = list(Appliance.objects.order_by('name_text'))
+  requested_house = get_object_or_404(House, pk=house_id)
+  link_list = Table_Link.objects.filter(house_id = house_id)
+  
+  context = {'appliance_list' : appliance_list, 'requested_house' : requested_house,'house_appliance' : get_appliances_from_table_link(link_list)}
+  return render(request, 'house/edit_house.html', context)
+
+# Deletes a house when a button on the house list is pressed.
+def delete_house(request, house_id):
+  requested_house = get_object_or_404(House, pk=house_id)
+  requested_house.delete()
+  return list_houses(request)
+
+# Function is used when a edit is made to a house.
+# it will effectively work similarly to the make house function
+def change_house(request, house_id):
+  house = get_object_or_404(House, pk=house_id)
+  print request.POST
+  new_name = request.POST['house_name']
+  occupants = request.POST['no_of_occupants']
+  new_type = request.POST['house_type']
+  appliance_list = dict(request.POST)['house_appliances']
+  house.house_type = new_type
+  house.number_of_occupants = occupants
+  house.house_name = new_name
+  house.save()
+  for link in Table_Link.objects.filter(house_id = house_id):
+    link.delete()
+  for appliance_id in appliance_list:
+    appliance = get_object_or_404(Appliance, pk=int(appliance_id))
+    new_link = Table_Link()
+    new_link.house_id = house
+    new_link.appliance_id = appliance
+    new_link.operation_id = appliance.default_time
+    new_link.save()
+  if 'submit' in request:
+    return list_houses(request)
+  else:
+    return house_details(request, house.id)
+  
+# returns a list of appliance linked to a house.
+def get_appliances_from_table_link(table_link_list):
+  appliance_list = []
+  for item in table_link_list:
+    appliance_list.append(item.appliance_id)
+  return appliance_list
+
+# renders a webpage with the details of a house. From
+# this page you can simulate the particular house.
+def house_details(request, house_id):
+  house = get_object_or_404(House, pk=house_id)
+  link_list = Table_Link.objects.filter(house_id = house_id)
+  #context = {'appliance_list' : get_appliances_from_table_link(link_list), 'house' : house}
+  context = {'link_list' : link_list, 'house' : house}
+  return render(request, 'house/house_details.html', context)
+
+# This function saves the timings on the houses appliances,
+# for example if you set the time of a simulation on a house for a tv 
+# to be at 10.00 for 2 hour, this function saves that detail.
+def save_house_appliances(request, house_id):
+  house = get_object_or_404(House, pk=house_id)
+  appliance_list = dict(request.POST)['id']
+  time_list = dict(request.POST)['start_time']
+  hour_list = dict(request.POST)['hours']
+  min_list = dict(request.POST)['minutes']
+  
+  link_list = Table_Link.objects.filter(house_id = house_id)
+  
+  previous_id = ''
+  count = 0
+  zipped = zip(appliance_list, time_list, hour_list, min_list)
+  zipped.sort()
+  appliance_list, time_list, hour_list, min_list = zip(*zipped)
+  #print("Appliance List: %s\nTimings list: %s\nDuration list: %s" %(appliance_list, time_list, duration_list))
+  for a_time, a_hour, a_minute, appliance_id in zip(time_list, hour_list, min_list, appliance_list):
+    start_time = time(int(a_time[:2]), int(a_time[-2:])) # start time of the appliance
+    end_time = hourmins_to_time(start_time, a_hour, a_minute)    
+
+    returned_link = Table_Link.objects.filter(house_id = house.id, appliance_id = appliance_id)
+    # This is used to check if there is more than one of the same appliance (two fridges for example)
+    if previous_id == appliance_id:
+      count += 1
+    else:
+      count = 0
+
+    appliance_time = OperationTimes()	# creates a new running time
+    appliance_time.on_time = start_time
+    appliance_time.off_time = end_time
+    appliance_time.hours = int(a_hour)
+    appliance_time.minutes = int(a_minute)
+    appliance_time.save()  
+    mylink = Table_Link.objects.get(id=returned_link[count].id)
+    mylink.operation_id = appliance_time
+    mylink.save()
+    previous_id = appliance_id
+    
+    
+
+  if 'saveButton' in request.POST:
+    return list_houses(request)
+  elif 'simButton' in request.POST:
+    return display_simulation(request, house_id)
+  else:
+    pass
+  
+  return house_details(request, house_id)
+
+# Renders the simulation dashboard, it calls the simulation function script which
+# generates the graph html files fo rendering on this page. 
+# This works based on the house_id of the house being simulated.
+def display_simulation(request, house_id):
+  house = get_object_or_404(House, pk=house_id)
+  link_list = Table_Link.objects.filter(house_id = house_id)
+  graph_html, total_consumption, consumption_list = sim.simulate(link_list, 1440)
+  
+  context = {'house' : house, 'graph_html' : graph_html, 'total_consumption' : int(total_consumption)}
+  return render(request, 'simulation/house_sim.html', context)
+
+# Renders a webpage of a premade simulation, it requires the use of a
+# the simulation object generated when a house is generated. 
+def display_premade_simulation(request, sim_id):
+  graph = get_object_or_404(Simulation, pk=sim_id)
+  
+  context = {'house' : graph.house_id, 'graph_html' : graph.html, 'total_consumption' : graph.total_consumption}
+  return render(request, 'simulation/house_sim.html', context)
+ 
+# renders a list of all the streets in the database
+def list_streets(request):
+    street_list = list(Street.objects.order_by('street_name'))
+    print street_list
+    context = {'street_list' : street_list}
+    return render(request, 'street/streets.html', context)
+
+# Renders the page for creating new street of houses.
+def new_street(request):
+    house_list = list(House.objects.order_by('house_name'))
+    context = { 'my_javascript_code' : "", 'house_list' : house_list}
+    return render(request, 'street/new_street.html', context)
+
+# Used to create a new street based on information retrieved from a webpage rendered by 
+# the new_street() function
+def make_street(request):
+    new_street=Street()
+    new_street.street_name = request.POST['street_name']
+    house_list = dict(request.POST)['house_on_street']
+    new_street.house_list = ",".join(house_list)
+    print("HOUSE LIST:  %s" %house_list)
+    new_street.save()
+    
+    if 'submit_and_exit' in request.POST:
+      return list_streets(request)
+    elif 'submit_and_sim' in request.POST:
+      return street_details(request, new_street.id)
+    else:
+      context = { 'my_javascript_code' : "<script>\n\t\tfunction notify() {\n\t\t\tnoty({ text: 'Added Street successfully!', layout : 'bottom', type : 'success', timeout:'1500'})\n\t\t;}\n\t\tnotify();\n\t</script> "}
+      return render(request, 'streets/new_street.html', context)
+
+# Used to delete the street
+def delete_street(request, street_id):
+  requested_street = get_object_or_404(Street, pk=street_id)
+  requested_street.delete()
+  return list_streets(request)
+
+# Lists the details of the house, can be used to simulate the street as well.
+def street_details(request, street_id):
+  street = get_object_or_404(Street, pk=street_id)
+  link_list = Table_Link.objects.filter(street_id = street)
+  new_list = []
+  
+  print street.house_list.split(",")
+  house_ids = [ int(house_id) for house_id in street.house_list.split(",")]
+  house_list = [ get_object_or_404(House, pk=house) for house in house_ids]
+  context = {'house_list' : house_list, 'street' : street}
+  return render(request, 'street/street_details.html', context)
+
+# The function below is used to simulate a street, it does this by launching the simulation
+# of every house in the street, then returning the summing the electricity consumed, further 
+# more a graph is generated showing the electrical consumption for the entire street.
+def simulate_street(request, street_id):
+  street = get_object_or_404(Street, pk=street_id)
+  house_ids = [ int(house_id) for house_id in street.house_list.split(",")]
+  total_street_consumption = 0
+  house_consumption = []
+  total_consumption_list = []
+  sim_list = []
+  graph_div_list = []
+  print house_ids
+  graph_list = []
+  house_list = []
+  count = 0
+
+  for ids in house_ids:
+    house = get_object_or_404(House, pk=ids)
+    link_list = Table_Link.objects.filter(house_id = house)
+    graph_html, total_consumption, consumption_list = sim.simulate(link_list, 1440)
+    newSim = Simulation()
+    newSim.house_id = house
+    newSim.html = graph_html
+    newSim.total_consumption = total_consumption
+    newSim.save()
+    sim_list.append(newSim)
+    if count == 0:
+      total_consumption_list = consumption_list
+      count += 1
+    else:
+      total_consumption_list = [a + b for a,b in zip(consumption_list, total_consumption_list)]
+    total_street_consumption += total_consumption
+    house_consumption.append(total_consumption)
+    graph_list.append(graph_html)
+    house_list.append(house)
+  street_graph = sim.generate_street_graph(total_consumption_list)
+  
+  house_consumption_list = zip(house_list, sim_list)
+  context = {'graph_list' : graph_list, 'house_consumption_list' : house_consumption_list, 
+  'street' : street, 'number_of_houses' : len(street.house_list.split(",")), 
+  'total_street_consumption' : int(total_street_consumption), 'simList' : sim_list,
+  'street_graph' : street_graph}
+  return render(request, 'simulation/street_sim.html', context)
+  
+    
+    
